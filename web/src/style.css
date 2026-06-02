@@ -169,6 +169,16 @@ body {
 .vol input { flex: 1; accent-color: var(--accent); }
 
 /* ---- mikrofon ---- */
+.live-row { margin-bottom: 8px; }
+.live-toggle {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg2); border: 2px solid var(--accent2);
+  border-radius: 12px; padding: 12px; cursor: pointer; font-size: 0.95rem;
+}
+.live-toggle input { width: 20px; height: 20px; accent-color: var(--accent2); flex: 0 0 auto; }
+.mic-one { margin: 8px 0; }
+.mic-one summary { color: var(--muted); font-size: 0.85rem; cursor: pointer; }
+.mic-one #mic-btn { width: 100%; margin-top: 8px; }
 .mic-help, .mic-status { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
 #mic-btn { width: 100%; margin: 6px 0 10px; }
 #mic-btn.listening { background: var(--bass); color: #fff; border-color: transparent; }

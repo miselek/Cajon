@@ -4,17 +4,25 @@
 //  1. getUserMedia → AnalyserNode čte signál z mikrofonu.
 //  2. Z energie signálu počítáme "onset envelope" – zvýrazňujeme nárůsty
 //     hlasitosti (údery), které tvoří rytmus.
-//  3. Po několika sekundách envelope autokorelujeme a najdeme nejsilnější
-//     periodicitu v rozsahu rozumných temp → odhad BPM.
+//  3. Envelope autokorelujeme a najdeme nejsilnější periodicitu v rozsahu
+//     rozumných temp → odhad BPM (+ míra jistoty z výšky korelačního píku).
 //
-// Autokorelace je odolnější než prosté hledání špiček (zvládne hluk i to,
-// že některé údery „chybí").
+// Dva režimy:
+//  - measure()         : jednorázové změření (~8 s)
+//  - startContinuous() : soustavné naslouchání – kruhový buffer posledních
+//                        ~10 s, tempo se přepočítává každých ~1,5 s a hlásí
+//                        se callbackem. Detekuje i ticho mezi písněmi.
 
 const ENVELOPE_HZ = 100; // vzorkování obálky (100 Hz = každých 10 ms)
 const MIN_BPM = 60;
 const MAX_BPM = 180;
 const FOLD_LOW = 70; // preferovaný cvičební rozsah – mimo něj tempo zdvojíme/způlíme
 const FOLD_HIGH = 150;
+
+const CONT_WINDOW_SEC = 10; // délka okna pro živou analýzu
+const CONT_ANALYZE_MS = 1500; // jak často živě přepočítat tempo
+const SILENCE_RMS = 0.006; // pod tím považujeme vstup za ticho
+const SILENCE_GAP_MS = 1200; // ticho delší než tohle = pauza / konec písně
 
 export class MicTempo {
   constructor() {
@@ -24,6 +32,15 @@ export class MicTempo {
     this.source = null;
     this.level = 0; // okamžitá hlasitost 0..1 (pro ukazatel)
     this._listening = false;
+
+    // soustavný režim
+    this._sampleTimer = null;
+    this._analyzeTimer = null;
+    this._ring = null;
+    this._ringPos = 0;
+    this._ringCount = 0;
+    this._prevEnergy = 0;
+    this._silentMs = 0;
   }
 
   get isActive() {
@@ -52,6 +69,7 @@ export class MicTempo {
 
   disable() {
     this._listening = false;
+    this.stopContinuous();
     if (this.stream) this.stream.getTracks().forEach((t) => t.stop());
     if (this.ctx) this.ctx.close();
     this.stream = null;
@@ -79,8 +97,8 @@ export class MicTempo {
     tick();
   }
 
+  // ---- jednorázové změření ----
   // Poslouchá `seconds` sekund a vrátí odhad BPM (nebo null).
-  // onProgress(0..1) průběžně informuje o postupu.
   async measure(seconds = 8, onProgress = () => {}) {
     if (!this.analyser) await this.enable();
     this._listening = true;
@@ -98,7 +116,6 @@ export class MicTempo {
         onProgress(Math.min(1, elapsed / durationMs));
 
         const energy = this._rms();
-        // spectral/energy flux – jen kladný nárůst (nástup úderu)
         const flux = Math.max(0, energy - prevEnergy);
         prevEnergy = energy;
         envelope.push(flux);
@@ -107,7 +124,8 @@ export class MicTempo {
           setTimeout(sample, dt * 1000);
         } else {
           this._listening = false;
-          resolve(this._estimateBpm(envelope, dt));
+          const r = this._analyze(envelope, dt);
+          resolve(r ? r.bpm : null);
         }
       };
       sample();
@@ -118,36 +136,117 @@ export class MicTempo {
     this._listening = false;
   }
 
-  _estimateBpm(envelope, dt) {
-    const n = envelope.length;
-    if (n < ENVELOPE_HZ) return null; // málo dat
+  // ---- soustavný (živý) režim ----
+  // onTempo({ bpm, confidence, silent }) se volá ~každých 1,5 s.
+  //   bpm        – odhad tempa (number) nebo null
+  //   confidence – 0..1 jak silná je periodicita (k filtrování zákmitů)
+  //   silent     – true při delší pauze (ticho mezi písněmi)
+  async startContinuous(onTempo) {
+    if (!this.analyser) await this.enable();
+    this._ring = new Float32Array(CONT_WINDOW_SEC * ENVELOPE_HZ);
+    this._ringPos = 0;
+    this._ringCount = 0;
+    this._prevEnergy = 0;
+    this._silentMs = 0;
+    const dt = 1 / ENVELOPE_HZ;
 
-    // normalizace obálky (odečtení střední hodnoty zostří autokorelaci)
+    this._sampleTimer = setInterval(() => {
+      if (!this.analyser) return;
+      const energy = this._rms();
+      const flux = Math.max(0, energy - this._prevEnergy);
+      this._prevEnergy = energy;
+      this._ring[this._ringPos] = flux;
+      this._ringPos = (this._ringPos + 1) % this._ring.length;
+      if (this._ringCount < this._ring.length) this._ringCount++;
+
+      if (energy < SILENCE_RMS) {
+        this._silentMs += dt * 1000;
+        // při delší pauze vyčistíme buffer, ať se na novou píseň zamkneme rychle
+        if (this._silentMs > SILENCE_GAP_MS) {
+          this._ringCount = 0;
+          this._ringPos = 0;
+        }
+      } else {
+        this._silentMs = 0;
+      }
+    }, dt * 1000);
+
+    this._analyzeTimer = setInterval(() => {
+      const silent = this._silentMs > SILENCE_GAP_MS;
+      // potřebujeme aspoň ~6 s materiálu pro spolehlivý odhad
+      if (silent || this._ringCount < ENVELOPE_HZ * 6) {
+        onTempo({ bpm: null, confidence: 0, silent });
+        return;
+      }
+      const env = this._ringInOrder();
+      const r = this._analyze(env, dt);
+      onTempo({
+        bpm: r ? r.bpm : null,
+        confidence: r ? r.confidence : 0,
+        silent: false,
+      });
+    }, CONT_ANALYZE_MS);
+  }
+
+  stopContinuous() {
+    if (this._sampleTimer) clearInterval(this._sampleTimer);
+    if (this._analyzeTimer) clearInterval(this._analyzeTimer);
+    this._sampleTimer = null;
+    this._analyzeTimer = null;
+  }
+
+  get isContinuous() {
+    return !!this._analyzeTimer;
+  }
+
+  // Vrátí obsah kruhového bufferu seřazený od nejstaršího po nejnovější.
+  _ringInOrder() {
+    const n = this._ringCount;
+    const len = this._ring.length;
+    const out = new Array(n);
+    const start = (this._ringPos - n + len) % len;
+    for (let i = 0; i < n; i++) out[i] = this._ring[(start + i) % len];
+    return out;
+  }
+
+  // Autokorelace obálky → { bpm, confidence } nebo null.
+  _analyze(envelope, dt) {
+    const n = envelope.length;
+    if (n < ENVELOPE_HZ) return null;
+
     const mean = envelope.reduce((a, b) => a + b, 0) / n;
     const env = envelope.map((v) => v - mean);
+
+    // energie signálu (r(0)) pro normalizaci jistoty
+    let r0 = 0;
+    for (let i = 0; i < n; i++) r0 += env[i] * env[i];
+    if (r0 <= 0) return null;
 
     const minLag = Math.round(60 / MAX_BPM / dt);
     const maxLag = Math.round(60 / MIN_BPM / dt);
 
     let bestLag = -1;
-    let bestScore = -Infinity;
+    let bestWeighted = -Infinity;
+    let bestRaw = 0;
     for (let lag = minLag; lag <= maxLag; lag++) {
-      let score = 0;
-      for (let i = 0; i + lag < n; i++) score += env[i] * env[i + lag];
-      // mírně zvýhodníme kratší laggy (vyšší tempa bývají správnější odhad
-      // než jejich celočíselné násobky)
-      score /= Math.sqrt(lag);
-      if (score > bestScore) {
-        bestScore = score;
+      let raw = 0;
+      for (let i = 0; i + lag < n; i++) raw += env[i] * env[i + lag];
+      // zvýhodníme kratší laggy (vyšší tempa bývají správnější než jejich násobky)
+      const weighted = raw / Math.sqrt(lag);
+      if (weighted > bestWeighted) {
+        bestWeighted = weighted;
+        bestRaw = raw;
         bestLag = lag;
       }
     }
-    if (bestLag <= 0 || bestScore <= 0) return null;
+    if (bestLag <= 0 || bestRaw <= 0) return null;
+
+    // jistota = normalizovaná výška korelačního píku (0..1)
+    const confidence = Math.max(0, Math.min(1, bestRaw / r0));
 
     let bpm = 60 / (bestLag * dt);
-    // přeložení do příjemného cvičebního rozsahu
     while (bpm < FOLD_LOW) bpm *= 2;
     while (bpm > FOLD_HIGH) bpm /= 2;
-    return Math.round(bpm);
+    return { bpm: Math.round(bpm), confidence };
   }
 }

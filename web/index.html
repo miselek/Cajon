@@ -61,12 +61,25 @@
         </section>
 
         <section class="panel mic">
-          <h3>🎤 Změřit tempo z písničky</h3>
+          <h3>🎤 Tempo z písničky</h3>
+
+          <div class="live-row">
+            <label class="live-toggle">
+              <input type="checkbox" id="live-toggle" />
+              <span><b>Živý režim</b> – poslouchej soustavně a přelaďuj se sám</span>
+            </label>
+          </div>
           <p class="mic-help">
-            Pusť písničku nahlas vedle telefonu a klepni na tlačítko. Appka
-            poslouchá ~8 s a nastaví tempo.
+            Zapni pro trénink na pozadí: pusť písničky nahlas vedle telefonu a
+            appka tempo sama hlídá a při změně / nové písni přeladí. Ideální na
+            30 minut v kuse. Obrazovka zůstane rozsvícená.
           </p>
-          <button id="mic-btn" class="btn">🎤 Změřit tempo z mikrofonu</button>
+
+          <details class="mic-one">
+            <summary>Nebo jen jednorázově změřit</summary>
+            <button id="mic-btn" class="btn">🎤 Změřit tempo (~8 s)</button>
+          </details>
+
           <div class="mic-level"><div id="mic-level-bar"></div></div>
           <p id="mic-status" class="mic-status"></p>
         </section>

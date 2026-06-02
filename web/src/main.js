@@ -34,6 +34,7 @@ const els = {
   micBtn: $('mic-btn'),
   micLevel: $('mic-level-bar'),
   micStatus: $('mic-status'),
+  live: $('live-toggle'),
 };
 
 // ---- inicializace ----
@@ -103,19 +104,19 @@ els.tap.addEventListener('click', () => {
 });
 
 // ---- přehrávání ----
-els.play.addEventListener('click', async () => {
-  if (metro.isPlaying) {
-    metro.stop();
-    els.play.textContent = '▶︎ Spustit';
-    els.play.classList.remove('playing');
-    highlightStep(els.grid, -1);
-    lastStep = -1;
-  } else {
-    await metro.start();
-    els.play.textContent = '⏸ Stop';
-    els.play.classList.add('playing');
-  }
-});
+async function startMetro() {
+  await metro.start();
+  els.play.textContent = '⏸ Stop';
+  els.play.classList.add('playing');
+}
+function stopMetro() {
+  metro.stop();
+  els.play.textContent = '▶︎ Spustit';
+  els.play.classList.remove('playing');
+  highlightStep(els.grid, -1);
+  lastStep = -1;
+}
+els.play.addEventListener('click', () => (metro.isPlaying ? stopMetro() : startMetro()));
 
 els.click.addEventListener('change', () => (metro.clickOn = els.click.checked));
 els.hits.addEventListener('change', () => (metro.hitsOn = els.hits.checked));
@@ -158,7 +159,93 @@ els.micBtn.addEventListener('click', async () => {
   } finally {
     measuring = false;
     els.micBtn.classList.remove('listening');
-    els.micBtn.textContent = '🎤 Změřit tempo z mikrofonu';
+    els.micBtn.textContent = '🎤 Změřit tempo (~8 s)';
+  }
+});
+
+// ---- živý režim: soustavné naslouchání + auto-přelaďování ----
+let wakeLock = null;
+let lockedBpm = null; // aktuálně zamčené živé tempo
+let cand = { bpm: null, count: 0 }; // kandidát na nové tempo
+const SAME_TOL = 4; // ±BPM = bereme jako stejnou píseň
+const SWITCH_COUNT = 3; // tolik stabilních oken po sobě → přepnutí
+const MIN_CONF = 0.12; // minimální jistota, ať appka nereaguje na šum
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (_) {
+    /* nevadí – jen obrazovka může zhasnout */
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+// po probuzení obrazovky Wake Lock obnovíme
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && els.live.checked && !wakeLock) {
+    requestWakeLock();
+  }
+});
+
+function onLiveTempo({ bpm, confidence, silent }) {
+  if (silent) {
+    cand = { bpm: null, count: 0 };
+    els.micStatus.textContent = '⏸ Ticho / pauza mezi písněmi…';
+    return;
+  }
+  if (!bpm || confidence < MIN_CONF) {
+    els.micStatus.textContent = lockedBpm
+      ? `🎵 Drží ${lockedBpm} BPM · poslouchám…`
+      : 'Poslouchám… (zatím slabý/nejasný rytmus)';
+    return;
+  }
+  if (lockedBpm === null) {
+    lockedBpm = bpm; // první zámek
+    setBpm(bpm);
+    if (!metro.isPlaying) startMetro();
+    els.micStatus.textContent = `🔒 Zamčeno na ${bpm} BPM`;
+    return;
+  }
+  if (Math.abs(bpm - lockedBpm) <= SAME_TOL) {
+    cand = { bpm: null, count: 0 }; // stabilní, stejná píseň
+    els.micStatus.textContent = `🔒 ${lockedBpm} BPM · jistota ${Math.round(confidence * 100)} %`;
+    return;
+  }
+  // jiné tempo – počkáme, až bude stabilní několik oken po sobě
+  if (cand.bpm !== null && Math.abs(bpm - cand.bpm) <= SAME_TOL) cand.count++;
+  else cand = { bpm, count: 1 };
+  els.micStatus.textContent = `🔄 Nové tempo ${bpm} BPM? (${cand.count}/${SWITCH_COUNT})`;
+  if (cand.count >= SWITCH_COUNT) {
+    lockedBpm = cand.bpm;
+    setBpm(lockedBpm);
+    cand = { bpm: null, count: 0 };
+    els.micStatus.textContent = `🔁 Přeladěno na ${lockedBpm} BPM`;
+  }
+}
+
+els.live.addEventListener('change', async () => {
+  if (els.live.checked) {
+    try {
+      await metro.resume();
+      lockedBpm = null;
+      cand = { bpm: null, count: 0 };
+      await mic.startContinuous(onLiveTempo);
+      await requestWakeLock();
+      els.micStatus.textContent = 'Živý režim zapnut – poslouchám…';
+    } catch (err) {
+      els.live.checked = false;
+      els.micStatus.textContent =
+        'Mikrofon není dostupný (povol přístup v prohlížeči, vyžaduje HTTPS nebo localhost).';
+      console.error(err);
+    }
+  } else {
+    mic.stopContinuous();
+    releaseWakeLock();
+    els.micStatus.textContent = 'Živý režim vypnut.';
   }
 });
 

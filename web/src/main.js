@@ -233,15 +233,22 @@ function onLiveTempo({ bpm, confidence, silent }) {
   }
 }
 
+let prevClickOn = true; // zapamatovaný stav kliku před živým režimem
 els.live.addEventListener('change', async () => {
   if (els.live.checked) {
     try {
       await metro.resume();
       lockedBpm = null;
       cand = { bpm: null, count: 0 };
+      // klik metronomu by mikrofon „slyšel" a kazil detekci → v živém režimu
+      // ho ztlumíme; uživatel hraje podle písničky + vizuálu.
+      prevClickOn = els.click.checked;
+      els.click.checked = false;
+      metro.clickOn = false;
       await mic.startContinuous(onLiveTempo);
       await requestWakeLock();
-      els.micStatus.textContent = 'Živý režim zapnut – poslouchám…';
+      els.micStatus.textContent =
+        'Živý režim zapnut – poslouchám… (klik metronomu ztlumen, ať neruší)';
     } catch (err) {
       els.live.checked = false;
       els.micStatus.textContent =
@@ -251,6 +258,8 @@ els.live.addEventListener('change', async () => {
   } else {
     mic.stopContinuous();
     releaseWakeLock();
+    els.click.checked = prevClickOn; // obnovit klik
+    metro.clickOn = prevClickOn;
     els.micStatus.textContent = 'Živý režim vypnut.';
   }
 });

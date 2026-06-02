@@ -51,7 +51,11 @@ export class MicTempo {
     if (this.stream) return;
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        echoCancellation: false,
+        // echoCancellation = true → prohlížeč odečte z mikrofonu zvuk, který
+        // sám telefon přehrává (náš metronom), takže se na něj detekce
+        // tempa nepřichytí. noiseSuppression/AGC necháváme vypnuté, ať
+        // nezkreslí rytmus hudby.
+        echoCancellation: true,
         noiseSuppression: false,
         autoGainControl: false,
       },

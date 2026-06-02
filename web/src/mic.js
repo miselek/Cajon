@@ -187,6 +187,7 @@ export class MicTempo {
       onTempo({
         bpm: r ? r.bpm : null,
         confidence: r ? r.confidence : 0,
+        nextBeatIn: r ? r.nextBeatIn : 0,
         silent: false,
       });
     }, CONT_ANALYZE_MS);
@@ -251,6 +252,30 @@ export class MicTempo {
     let bpm = 60 / (bestLag * dt);
     while (bpm < FOLD_LOW) bpm *= 2;
     while (bpm > FOLD_HIGH) bpm /= 2;
-    return { bpm: Math.round(bpm), confidence };
+    bpm = Math.round(bpm);
+
+    // --- fáze: kam padají doby? ---
+    // Pro výsledné (přeložené) tempo najdeme posun, kde leží doby: takový
+    // offset v rámci jedné doby, který nasčítá nejvíc energie úderů.
+    const beatPeriodSec = 60 / bpm;
+    const beatLag = Math.max(1, Math.round(beatPeriodSec / dt));
+    let bestOff = 0;
+    let bestSum = -Infinity;
+    for (let off = 0; off < beatLag; off++) {
+      let s = 0;
+      for (let i = off; i < n; i += beatLag) s += envelope[i];
+      if (s > bestSum) {
+        bestSum = s;
+        bestOff = off;
+      }
+    }
+    // poslední doba na konci okna (≈ teď) → kolik sekund do další doby
+    const lastIdx = n - 1 - (((n - 1 - bestOff) % beatLag) + beatLag) % beatLag;
+    const secondsAgo = (n - 1 - lastIdx) * dt;
+    let nextBeatIn = beatPeriodSec - secondsAgo;
+    if (nextBeatIn < 0) nextBeatIn += beatPeriodSec;
+    if (nextBeatIn >= beatPeriodSec) nextBeatIn -= beatPeriodSec;
+
+    return { bpm, confidence, nextBeatIn };
   }
 }

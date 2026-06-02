@@ -31,6 +31,7 @@ const els = {
   bpm: $('bpm'),
   bpmNum: $('bpm-num'),
   tap: $('tap'),
+  align: $('align'),
   play: $('play'),
   click: $('click-toggle'),
   hits: $('hits-toggle'),
@@ -107,6 +108,15 @@ els.tap.addEventListener('click', () => {
   els.tap.classList.remove('pulse');
   void els.tap.offsetWidth;
   els.tap.classList.add('pulse');
+});
+
+// Ruční zarovnání: klepni na "1" písně a doby se srovnají.
+els.align.addEventListener('click', async () => {
+  if (!metro.isPlaying) await startMetro();
+  metro.alignDownbeat();
+  els.align.classList.remove('pulse');
+  void els.align.offsetWidth;
+  els.align.classList.add('pulse');
 });
 
 // ---- přehrávání ----
@@ -197,7 +207,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-function onLiveTempo({ bpm, confidence, silent }) {
+async function onLiveTempo({ bpm, confidence, silent, nextBeatIn }) {
   if (silent) {
     cand = { bpm: null, count: 0 };
     els.micStatus.textContent = '⏸ Ticho / pauza mezi písněmi…';
@@ -212,7 +222,8 @@ function onLiveTempo({ bpm, confidence, silent }) {
   if (lockedBpm === null) {
     lockedBpm = bpm; // první zámek
     setBpm(bpm);
-    if (!metro.isPlaying) startMetro();
+    if (!metro.isPlaying) await startMetro();
+    metro.realignBeat(nextBeatIn); // zarovnat doby na píseň
     els.micStatus.textContent = `🔒 Zamčeno na ${bpm} BPM`;
     return;
   }
@@ -228,6 +239,7 @@ function onLiveTempo({ bpm, confidence, silent }) {
   if (cand.count >= SWITCH_COUNT) {
     lockedBpm = cand.bpm;
     setBpm(lockedBpm);
+    metro.realignBeat(nextBeatIn); // nová píseň → znovu zarovnat doby
     cand = { bpm: null, count: 0 };
     els.micStatus.textContent = `🔁 Přeladěno na ${lockedBpm} BPM`;
   }

@@ -145,6 +145,34 @@ export class Metronome {
     return this.lastDrawnStep;
   }
 
+  // Zarovná mřížku tak, aby další DOBA padla za `secUntilNextBeat` sekund
+  // (automatika z mikrofonu). Kompenzuje výstupní latenci zvuku.
+  realignBeat(secUntilNextBeat) {
+    if (!this.isPlaying || !this.pattern || !this.ctx) return;
+    const cellsPerBeat = this.pattern.subdivisions / this.pattern.beatsPerBar;
+    const sps = this._secondsPerStep();
+    const beatPeriod = sps * cellsPerBeat;
+    const latency = this.ctx.outputLatency || this.ctx.baseLatency || 0;
+    let beatTime = this.ctx.currentTime + secUntilNextBeat - latency;
+    while (beatTime < this.ctx.currentTime + 0.03) beatTime += beatPeriod;
+    // další naplánovaný krok bude hranice doby
+    this.currentStep =
+      (Math.ceil((this.currentStep + 1e-6) / cellsPerBeat) * cellsPerBeat) %
+      this.pattern.subdivisions;
+    this.nextNoteTime = beatTime;
+    this.notesInQueue = [];
+    this.lastDrawnStep = -1;
+  }
+
+  // Zarovná „1" (začátek taktu) na teď – pro ruční tlačítko „Srovnat".
+  alignDownbeat() {
+    if (!this.pattern || !this.ctx) return;
+    this.currentStep = 0;
+    this.nextNoteTime = this.ctx.currentTime;
+    this.notesInQueue = [];
+    this.lastDrawnStep = -1;
+  }
+
   // Nadcházející údery v okně `windowSec` (pro „dálnici" padajících not).
   // Každý: { hit, hand, timeUntil } (timeUntil < 0 = právě prošel čárou).
   upcomingHits(windowSec) {

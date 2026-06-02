@@ -9,6 +9,27 @@ import { stepMap } from './patterns.js';
 const LOOKAHEAD_MS = 25; // jak často scheduler kontroluje
 const SCHEDULE_AHEAD = 0.12; // o kolik sekund dopředu plánujeme
 
+// Čistá projekce nadcházejících úderů – snadno testovatelná bez Web Audio.
+// Promítá kroky vpřed od stavu scheduleru a vybírá ty, na kterých je úder.
+export function projectHits(now, nextNoteTime, currentStep, sps, sub, lookup, windowSec) {
+  const out = [];
+  const back = 2; // pár kroků do minulosti, ať noty hezky „propadnou" pod čáru
+  let t = nextNoteTime - back * sps;
+  let step = (((currentStep - back) % sub) + sub) % sub;
+  let guard = 0;
+  while (t - now <= windowSec && guard < 4000) {
+    const timeUntil = t - now;
+    if (timeUntil >= -0.35) {
+      const hit = lookup.get(step);
+      if (hit) out.push({ hit: hit.hit, hand: hit.hand, timeUntil });
+    }
+    t += sps;
+    step = (step + 1) % sub;
+    guard++;
+  }
+  return out;
+}
+
 export class Metronome {
   constructor() {
     this.ctx = null;
@@ -122,6 +143,21 @@ export class Metronome {
       this.notesInQueue.shift();
     }
     return this.lastDrawnStep;
+  }
+
+  // Nadcházející údery v okně `windowSec` (pro „dálnici" padajících not).
+  // Každý: { hit, hand, timeUntil } (timeUntil < 0 = právě prošel čárou).
+  upcomingHits(windowSec) {
+    if (!this.isPlaying || !this.pattern || !this.ctx) return [];
+    return projectHits(
+      this.ctx.currentTime,
+      this.nextNoteTime,
+      this.currentStep,
+      this._secondsPerStep(),
+      this.pattern.subdivisions,
+      this.stepLookup,
+      windowSec
+    );
   }
 
   // ---- syntéza zvuků ----

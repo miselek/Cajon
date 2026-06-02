@@ -17,25 +17,30 @@
       </header>
 
       <main>
-        <section class="panel top">
+        <section class="panel play">
           <div class="cajon-wrap" id="cajon"></div>
-          <div class="legend-wrap">
-            <h3>Co kam bouchat</h3>
-            <div id="legend" class="legend"></div>
-            <ul class="hint">
-              <li><b>Bass</b> – celou dlaní doprostřed přední desky (hluboký zvuk).</li>
-              <li><b>Tón / slap</b> – prsty na horní hranu (vyšší, ostřejší zvuk).</li>
-              <li><b>Ghost</b> – tichý dotek, jen pro pocit rytmu.</li>
-              <li><b>R / L</b> – doporučená ruka (pravá / levá).</li>
-            </ul>
-          </div>
+          <div class="highway-wrap"><canvas id="highway"></canvas></div>
+        </section>
+
+        <section class="panel">
+          <h3>Co kam bouchat</h3>
+          <div id="legend" class="legend"></div>
+          <ul class="hint">
+            <li><b>Bass</b> – celou dlaní doprostřed přední desky (hluboký zvuk).</li>
+            <li><b>Tón / slap</b> – prsty na horní hranu (vyšší, ostřejší zvuk).</li>
+            <li><b>Ghost</b> – tichý dotek, jen pro pocit rytmu.</li>
+            <li>Noty na dálnici padají k žluté čáře – <b>bouchni, když ji nota protne.</b> Pruhy: <b>L·tón | L·bass | R·bass | R·tón</b>.</li>
+          </ul>
         </section>
 
         <section class="panel">
           <h3>Rytmus k procvičení</h3>
           <div id="pattern-list" class="pattern-list"></div>
           <p id="pattern-desc" class="pattern-desc"></p>
-          <div id="grid" class="grid"></div>
+          <details class="grid-details">
+            <summary>Celý takt přehledně (mřížka)</summary>
+            <div id="grid" class="grid"></div>
+          </details>
         </section>
 
         <section class="panel controls">

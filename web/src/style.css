@@ -40,11 +40,11 @@ body {
 }
 .panel h3 { margin: 0 0 10px; font-size: 1.05rem; }
 
-/* ---- cajon nákres + legenda ---- */
-.top { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
-.cajon-wrap { flex: 0 0 150px; display: flex; justify-content: center; }
-.cajon-svg { width: 150px; height: auto; }
-.legend-wrap { flex: 1 1 240px; min-width: 200px; }
+/* ---- herní plocha: cajon + dálnice ---- */
+.play { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+.cajon-wrap { flex: 0 0 160px; display: flex; justify-content: center; align-items: flex-start; }
+.cajon-svg { width: 160px; height: auto; }
+.grid-details summary { color: var(--muted); font-size: 0.85rem; cursor: pointer; margin-bottom: 8px; }
 
 .zone {
   fill: rgba(255, 255, 255, 0.07);
@@ -52,11 +52,13 @@ body {
   stroke-width: 2;
   transition: fill 0.08s;
 }
-.zone-bass.flash { animation: zoneflash 0.32s ease-out; fill: var(--bass); }
-.zone-tone.flash { animation: zoneflash 0.28s ease-out; fill: var(--tone); }
-@keyframes zoneflash {
-  0% { fill: #fff; }
-  100% { fill: rgba(255, 255, 255, 0.07); }
+.zone-bass.flash { animation: flashbass 0.32s ease-out; }
+.zone-tone-left.flash, .zone-tone-right.flash { animation: flashtone 0.28s ease-out; }
+@keyframes flashbass {
+  0% { fill: var(--bass); } 100% { fill: rgba(255, 255, 255, 0.07); }
+}
+@keyframes flashtone {
+  0% { fill: var(--tone); } 100% { fill: rgba(255, 255, 255, 0.07); }
 }
 .zone-label {
   fill: var(--text);
@@ -64,6 +66,23 @@ body {
   font-weight: 700;
   text-anchor: middle;
   pointer-events: none;
+}
+
+/* ruce L/R */
+.hand-puck { transition: transform 0.13s ease-out; }
+.hand-puck.striking circle { fill: var(--active); }
+.hand-letter {
+  fill: #1c1530; font-size: 15px; font-weight: 800;
+  text-anchor: middle; pointer-events: none;
+}
+
+/* dálnice padajících úderů */
+.highway-wrap { flex: 1 1 220px; min-width: 200px; display: flex; }
+#highway {
+  width: 100%; height: 320px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .legend { display: flex; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }

@@ -6,9 +6,12 @@ import {
   renderGrid,
   highlightStep,
   renderCajon,
-  flashCajon,
+  cajonStrike,
   hitLabel,
 } from './notation.js';
+import { fitHighway, drawHighway } from './highway.js';
+
+const HIGHWAY_WINDOW = 2.2; // kolik sekund dopředu dálnice ukazuje
 
 const metro = new Metronome();
 const mic = new MicTempo();
@@ -21,6 +24,7 @@ let lastStep = -1;
 const $ = (id) => document.getElementById(id);
 const els = {
   cajon: $('cajon'),
+  highway: $('highway'),
   grid: $('grid'),
   desc: $('pattern-desc'),
   list: $('pattern-list'),
@@ -39,6 +43,8 @@ const els = {
 
 // ---- inicializace ----
 renderCajon(els.cajon);
+fitHighway(els.highway);
+window.addEventListener('resize', () => fitHighway(els.highway));
 buildPatternList();
 selectPattern(pattern.id);
 setBpm(pattern.recommendedBpm);
@@ -266,9 +272,11 @@ function visualLoop() {
   if (step !== lastStep) {
     highlightStep(els.grid, step);
     const hit = lookup.get(step);
-    if (hit) flashCajon(els.cajon, hit.hit);
+    if (hit) cajonStrike(els.cajon, hit.hand, hit.hit);
     lastStep = step;
   }
+  const hits = metro.isPlaying ? metro.upcomingHits(HIGHWAY_WINDOW) : [];
+  drawHighway(els.highway, hits, HIGHWAY_WINDOW);
   requestAnimationFrame(visualLoop);
 }
 visualLoop();

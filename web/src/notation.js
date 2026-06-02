@@ -52,32 +52,64 @@ export function highlightStep(container, step) {
   }
 }
 
-// Nákres cajonu se dvěma zónami: BASS (střed) a TÓN (horní hrana).
+// Nákres cajonu se zónami (BASS uprostřed, TÓN po krajích horní hrany)
+// a dvěma rukama (L/R), které „bouchnou" do správného místa.
+const HAND_REST = { L: { x: 62, y: 232 }, R: { x: 138, y: 232 } };
+
+function handTarget(hand, hit) {
+  if (hit === 'tone') return hand === 'L' ? { x: 64, y: 46 } : { x: 136, y: 46 };
+  return { x: 100, y: 150 }; // bass i ghost = střed
+}
+
 export function renderCajon(container) {
+  const hand = (h) => `
+    <g class="hand-puck" id="hand-${h}" data-hand="${h}">
+      <circle cx="${HAND_REST[h].x}" cy="${HAND_REST[h].y}" r="15"
+              fill="#f3eefb" stroke="#1c1530" stroke-width="2"/>
+      <text x="${HAND_REST[h].x}" y="${HAND_REST[h].y + 1}" class="hand-letter">${h}</text>
+    </g>`;
   container.innerHTML = `
     <svg viewBox="0 0 200 260" class="cajon-svg" aria-label="cajon">
       <rect x="20" y="10" width="160" height="240" rx="10"
             fill="#caa472" stroke="#8a6a3b" stroke-width="3"/>
-      <!-- horní hrana = TÓN / slap -->
-      <rect class="zone zone-tone" data-zone="tone"
-            x="32" y="22" width="136" height="46" rx="6"/>
-      <text x="100" y="50" class="zone-label">TÓN (slap)</text>
+      <!-- horní hrana = TÓN / slap (vlevo / vpravo) -->
+      <rect class="zone zone-tone-left"  data-zone="tone" x="32"  y="24" width="66" height="42" rx="6"/>
+      <rect class="zone zone-tone-right" data-zone="tone" x="102" y="24" width="66" height="42" rx="6"/>
+      <text x="65"  y="50" class="zone-label">TÓN</text>
+      <text x="135" y="50" class="zone-label">TÓN</text>
       <!-- střed = BASS -->
-      <circle class="zone zone-bass" data-zone="bass" cx="100" cy="150" r="46"/>
+      <circle class="zone zone-bass" data-zone="bass" cx="100" cy="150" r="44"/>
       <text x="100" y="155" class="zone-label">BASS</text>
+      ${hand('L')}
+      ${hand('R')}
     </svg>
   `;
 }
 
-// Krátce rozsvítí zónu cajonu podle typu úderu.
-export function flashCajon(container, hitType) {
-  if (hitType === 'ghost') return; // ghost neukazujeme na nákresu
-  const zone = container.querySelector(`.zone-${hitType}`);
-  if (!zone) return;
-  zone.classList.remove('flash');
-  // restart CSS animace
-  void zone.offsetWidth;
-  zone.classList.add('flash');
+// Pohne rukou na cílové místo a rozsvítí zónu (krátce, pak ruka zpět).
+export function cajonStrike(container, hand, hit) {
+  const puck = container.querySelector(`#hand-${hand}`);
+  if (!puck) return;
+  const rest = HAND_REST[hand];
+  const t = handTarget(hand, hit);
+  puck.style.transform = `translate(${t.x - rest.x}px, ${t.y - rest.y}px)`;
+  puck.classList.add('striking');
+  setTimeout(() => {
+    puck.style.transform = '';
+    puck.classList.remove('striking');
+  }, 150);
+
+  let zoneSel = null;
+  if (hit === 'bass') zoneSel = '.zone-bass';
+  else if (hit === 'tone') zoneSel = hand === 'L' ? '.zone-tone-left' : '.zone-tone-right';
+  if (zoneSel) {
+    const zone = container.querySelector(zoneSel);
+    if (zone) {
+      zone.classList.remove('flash');
+      void zone.offsetWidth;
+      zone.classList.add('flash');
+    }
+  }
 }
 
 export function hitLabel(type) {

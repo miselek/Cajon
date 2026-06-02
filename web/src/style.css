@@ -1,0 +1,213 @@
+:root {
+  --bg: #1c1530;
+  --bg2: #271c44;
+  --panel: #2e2350;
+  --accent: #ff9f43;
+  --accent2: #54d6c0;
+  --text: #f3eefb;
+  --muted: #b3a9cf;
+  --bass: #ff6b6b;
+  --tone: #54d6c0;
+  --ghost: #8a80b5;
+  --active: #ffd166;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg2), var(--bg));
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app { max-width: 760px; margin: 0 auto; padding: 16px; }
+
+.header { text-align: center; margin: 8px 0 4px; }
+.header h1 { margin: 0; font-size: 1.7rem; }
+.tagline { color: var(--muted); margin: 6px 0 12px; font-size: 0.95rem; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.panel h3 { margin: 0 0 10px; font-size: 1.05rem; }
+
+/* ---- herní plocha: cajon + dálnice ---- */
+.play { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+.cajon-wrap { flex: 0 0 160px; display: flex; justify-content: center; align-items: flex-start; }
+.cajon-svg { width: 160px; height: auto; }
+.grid-details summary { color: var(--muted); font-size: 0.85rem; cursor: pointer; margin-bottom: 8px; }
+
+.zone {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 2;
+  transition: fill 0.08s;
+}
+.zone-bass.flash { animation: flashbass 0.32s ease-out; }
+.zone-tone-left.flash, .zone-tone-right.flash { animation: flashtone 0.28s ease-out; }
+@keyframes flashbass {
+  0% { fill: var(--bass); } 100% { fill: rgba(255, 255, 255, 0.07); }
+}
+@keyframes flashtone {
+  0% { fill: var(--tone); } 100% { fill: rgba(255, 255, 255, 0.07); }
+}
+.zone-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ruce L/R */
+.hand-puck { transition: transform 0.13s ease-out; }
+.hand-puck.striking circle { fill: var(--active); }
+.hand-letter {
+  fill: #1c1530; font-size: 15px; font-weight: 800;
+  text-anchor: middle; pointer-events: none;
+}
+
+/* dálnice padajících úderů */
+.highway-wrap { flex: 1 1 220px; min-width: 200px; display: flex; }
+#highway {
+  width: 100%; height: 320px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.legend { display: flex; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+.leg { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.hint { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
+.hint b { color: var(--text); }
+
+/* ---- symboly úderů (sdílené notací i legendou) ---- */
+.symbol { display: inline-block; }
+.symbol[data-hit='bass'] {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--bass);
+}
+.symbol[data-hit='tone'] {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: transparent; border: 3px solid var(--tone);
+}
+.symbol[data-hit='ghost'] {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ghost); opacity: 0.7;
+}
+
+/* ---- knihovna rytmů ---- */
+.pattern-list { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.pattern-card {
+  flex: 1 1 140px;
+  background: var(--bg2);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 10px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.05s;
+}
+.pattern-card:active { transform: scale(0.98); }
+.pattern-card.selected { border-color: var(--accent); }
+.pc-name { font-weight: 700; font-size: 0.95rem; }
+.pc-level {
+  font-size: 0.72rem; align-self: flex-start;
+  padding: 2px 8px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1); color: var(--muted);
+}
+.pc-level.zacatecnik { background: rgba(84, 214, 192, 0.18); color: var(--accent2); }
+.pc-level.mirne-pokrocily { background: rgba(255, 159, 67, 0.18); color: var(--accent); }
+
+.pattern-desc { color: var(--muted); font-size: 0.9rem; line-height: 1.45; margin: 4px 0 14px; }
+
+/* ---- časová mřížka ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 16), 1fr);
+  gap: 4px;
+}
+.cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+}
+.cell.beat { background: rgba(255, 255, 255, 0.09); }
+.cell.active { border-color: var(--active); box-shadow: 0 0 0 2px var(--active), 0 0 14px var(--active); }
+.beat-num {
+  position: absolute; top: 2px; left: 4px;
+  font-size: 0.6rem; color: var(--muted);
+}
+.hand {
+  position: absolute; bottom: 1px; right: 3px;
+  font-size: 0.58rem; color: var(--muted); font-weight: 700;
+}
+
+/* ---- ovládání ---- */
+.row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.row:last-child { margin-bottom: 0; }
+.btn {
+  background: var(--bg2); color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px; padding: 12px 18px;
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  transition: transform 0.05s, background 0.15s;
+}
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--accent); color: #2a1c00; border-color: transparent; }
+.btn.primary.playing { background: var(--accent2); color: #06241f; }
+.btn.pulse { animation: pulse 0.18s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+.tempo label { font-weight: 600; }
+.tempo input[type='range'] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.tempo input[type='number'] {
+  width: 70px; padding: 8px; border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg2); color: var(--text); font-size: 1rem; text-align: center;
+}
+.unit { color: var(--muted); }
+.toggles { gap: 18px; font-size: 0.9rem; color: var(--text); }
+.toggles label { display: inline-flex; align-items: center; gap: 6px; }
+.toggles input { accent-color: var(--accent); }
+.vol { flex: 1; min-width: 160px; }
+.vol input { flex: 1; accent-color: var(--accent); }
+
+/* ---- mikrofon ---- */
+.live-row { margin-bottom: 8px; }
+.live-toggle {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg2); border: 2px solid var(--accent2);
+  border-radius: 12px; padding: 12px; cursor: pointer; font-size: 0.95rem;
+}
+.live-toggle input { width: 20px; height: 20px; accent-color: var(--accent2); flex: 0 0 auto; }
+.mic-one { margin: 8px 0; }
+.mic-one summary { color: var(--muted); font-size: 0.85rem; cursor: pointer; }
+.mic-one #mic-btn { width: 100%; margin-top: 8px; }
+.mic-help, .mic-status { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+#mic-btn { width: 100%; margin: 6px 0 10px; }
+#mic-btn.listening { background: var(--bass); color: #fff; border-color: transparent; }
+.mic-level { height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 6px; overflow: hidden; }
+#mic-level-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.08s; }
+.mic-status { margin: 10px 0 0; min-height: 1.2em; }
+
+.footer { text-align: center; color: var(--muted); font-size: 0.78rem; padding: 8px 0 20px; }
+
+@media (max-width: 420px) {
+  .grid { gap: 3px; }
+  .header h1 { font-size: 1.4rem; }
+}

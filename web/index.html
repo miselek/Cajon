@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#1c1530" />
+    <title>Cajon Trenér</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>🥁 Cajon Trenér</h1>
+        <p class="tagline">
+          Pusť písničku nahlas (třeba na iPadu), nech appku změřit tempo a cvič
+          podle metronomu a grafické notace.
+        </p>
+      </header>
+
+      <main>
+        <section class="panel top">
+          <div class="cajon-wrap" id="cajon"></div>
+          <div class="legend-wrap">
+            <h3>Co kam bouchat</h3>
+            <div id="legend" class="legend"></div>
+            <ul class="hint">
+              <li><b>Bass</b> – celou dlaní doprostřed přední desky (hluboký zvuk).</li>
+              <li><b>Tón / slap</b> – prsty na horní hranu (vyšší, ostřejší zvuk).</li>
+              <li><b>Ghost</b> – tichý dotek, jen pro pocit rytmu.</li>
+              <li><b>R / L</b> – doporučená ruka (pravá / levá).</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Rytmus k procvičení</h3>
+          <div id="pattern-list" class="pattern-list"></div>
+          <p id="pattern-desc" class="pattern-desc"></p>
+          <div id="grid" class="grid"></div>
+        </section>
+
+        <section class="panel controls">
+          <div class="row">
+            <button id="play" class="btn primary">▶︎ Spustit</button>
+            <button id="tap" class="btn">Tap tempo</button>
+          </div>
+
+          <div class="row tempo">
+            <label for="bpm">Tempo</label>
+            <input type="range" id="bpm" min="40" max="200" step="1" />
+            <input type="number" id="bpm-num" min="40" max="200" />
+            <span class="unit">BPM</span>
+          </div>
+
+          <div class="row toggles">
+            <label><input type="checkbox" id="click-toggle" checked /> Metronom (klik)</label>
+            <label><input type="checkbox" id="hits-toggle" checked /> Zvuky úderů</label>
+            <label class="vol">Hlasitost
+              <input type="range" id="volume" min="0" max="1" step="0.05" value="0.9" />
+            </label>
+          </div>
+        </section>
+
+        <section class="panel mic">
+          <h3>🎤 Změřit tempo z písničky</h3>
+          <p class="mic-help">
+            Pusť písničku nahlas vedle telefonu a klepni na tlačítko. Appka
+            poslouchá ~8 s a nastaví tempo.
+          </p>
+          <button id="mic-btn" class="btn">🎤 Změřit tempo z mikrofonu</button>
+          <div class="mic-level"><div id="mic-level-bar"></div></div>
+          <p id="mic-status" class="mic-status"></p>
+        </section>
+      </main>
+
+      <footer class="footer">
+        Vše běží v prohlížeči – žádný server. Pro mikrofon povol přístup
+        (vyžaduje HTTPS nebo localhost).
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
